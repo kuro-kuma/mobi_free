@@ -195,8 +195,8 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white p-6 font-sans">
-      <header className="max-w-4xl mx-auto flex justify-between items-center mb-10">
+    <div className="min-h-screen bg-neutral-950 text-white p-4 sm:p-6 font-sans">
+      <header className="w-full flex justify-between items-center mb-10">
         <div className="flex items-center gap-3">
           <div className="bg-amber-500 p-2 rounded-xl">
             <Activity className="text-black w-6 h-6" strokeWidth={3} />
@@ -214,7 +214,7 @@ export default function App() {
         </button>
       </header>
 
-      <main className="max-w-4xl mx-auto space-y-6">
+      <main className="w-full space-y-6">
         {error && (
           <div className="bg-rose-500/10 border border-rose-500/20 rounded-3xl p-6 flex gap-4 items-start">
             <Info className="text-rose-500 w-6 h-6 shrink-0 mt-0.5" />
@@ -224,7 +224,7 @@ export default function App() {
           </div>
         )}
         {/* 数据面板 */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <StatCard 
             title="瞬时功率" 
             value={stats.instantPower} 
@@ -247,7 +247,7 @@ export default function App() {
         </div>
 
         {/* 阻力控制面板 */}
-        <div className="bg-zinc-900 rounded-[2.5rem] p-8 border border-white/5 shadow-2xl">
+        <div className="bg-zinc-900 rounded-[2.5rem] p-6 sm:p-8 border border-white/5 shadow-2xl">
           <div className="flex justify-between items-end mb-8">
             <div>
               <h2 className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-1">阻力强度调节</h2>
@@ -306,7 +306,7 @@ export default function App() {
       </main>
 
       {/* 页脚 */}
-      <footer className="max-w-4xl mx-auto mt-12 mb-8 text-center">
+      <footer className="w-full mt-12 mb-8 text-center">
         <p className="text-zinc-700 text-[10px] font-bold uppercase tracking-[0.2em]">
           Powered by Web Bluetooth API & Open Source
         </p>
