@@ -1,14 +1,18 @@
 import { useState, useCallback } from 'react';
-import { 
-  Activity, 
-  Zap, 
-  Gauge, 
-  Bluetooth, 
-  BluetoothOff, 
-  RotateCcw, 
-  Plus, 
-  Minus, 
-  Info 
+import {
+  Activity,
+  Zap,
+  Gauge,
+  Bluetooth,
+  BluetoothOff,
+  RotateCcw,
+  Plus,
+  Minus,
+  Info,
+  Timer,
+  Heart,
+  Flame,
+  MapPin
 } from 'lucide-react';
 import { useBluetooth } from './hooks/useBluetooth';
 
@@ -42,13 +46,19 @@ type ControlButtonProps = {
   onClick?: () => void;
 };
 const ControlButton = ({ children, onClick }: ControlButtonProps) => (
-  <button 
-    onClick={onClick} 
+  <button
+    onClick={onClick}
     className="flex-1 h-16 bg-zinc-800 rounded-2xl flex items-center justify-center hover:bg-zinc-700 active:scale-95 transition-all text-white shadow-lg"
   >
     {children}
   </button>
 );
+
+const formatTime = (seconds: number) => {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+};
 
 /**
  * --- 主应用组件 ---
@@ -61,7 +71,7 @@ export default function App() {
   const updateResistance = useCallback(async (level: number) => {
     const safeLevel = Math.min(Math.max(level, 1), 24);
     const rawValue = Math.round(safeLevel * 10);
-    
+
     try {
       await setResistance(rawValue / 10);
       setUiResistance(safeLevel);
@@ -84,11 +94,10 @@ export default function App() {
           </div>
           <h1 className="font-black italic text-2xl tracking-tighter">MOBI-FREE</h1>
         </div>
-        <button 
+        <button
           onClick={isConnected ? disconnect : connect}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-bold transition-all shadow-xl ${
-            isConnected ? 'bg-zinc-800 text-zinc-400' : 'bg-white text-black hover:scale-105 active:scale-95'
-          }`}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-full font-bold transition-all shadow-xl ${isConnected ? 'bg-zinc-800 text-zinc-400' : 'bg-white text-black hover:scale-105 active:scale-95'
+            }`}
         >
           {isConnected ? <BluetoothOff size={18} /> : <Bluetooth size={18} />}
           {isConnected ? "断开" : "连接椭圆机"}
@@ -105,25 +114,50 @@ export default function App() {
           </div>
         )}
         {/* 数据面板 */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          <StatCard 
-            title="瞬时功率" 
-            value={stats.instantPower} 
-            unit="W" 
-            icon={<Zap className="text-amber-500 w-4 h-4" />} 
-            highlight 
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard
+            title="瞬时功率"
+            value={stats.instantPower}
+            unit="W"
+            icon={<Zap className="text-amber-500 w-4 h-4" />}
+            highlight
           />
-          <StatCard 
-            title="实时踏频" 
-            value={stats.instantCadence} 
-            unit="RPM" 
-            icon={<RotateCcw className="text-blue-400 w-4 h-4" />} 
+          <StatCard
+            title="实时踏频"
+            value={stats.instantCadence}
+            unit="RPM"
+            icon={<RotateCcw className="text-blue-400 w-4 h-4" />}
           />
-          <StatCard 
-            title="即时速度" 
-            value={stats.instantSpeed.toFixed(1)} 
-            unit="KM/H" 
-            icon={<Gauge className="text-emerald-400 w-4 h-4" />} 
+          <StatCard
+            title="即时速度"
+            value={stats.instantSpeed.toFixed(1)}
+            unit="KM/H"
+            icon={<Gauge className="text-emerald-400 w-4 h-4" />}
+          />
+
+          <StatCard
+            title="运动时长"
+            value={formatTime(stats.elapsedTime)}
+            unit=""
+            icon={<Timer className="text-purple-400 w-4 h-4" />}
+          />
+          <StatCard
+            title="消耗热量"
+            value={stats.kcal.toFixed(0)}
+            unit="KCAL"
+            icon={<Flame className="text-orange-500 w-4 h-4" />}
+          />
+          <StatCard
+            title="骑行距离"
+            value={(stats.totalDistance / 1000).toFixed(2)}
+            unit="KM"
+            icon={<MapPin className="text-pink-400 w-4 h-4" />}
+          />
+          <StatCard
+            title="心率"
+            value={stats.heartRate > 0 ? stats.heartRate : '--'}
+            unit="BPM"
+            icon={<Heart className="text-red-500 w-4 h-4" />}
           />
         </div>
 
@@ -138,11 +172,11 @@ export default function App() {
             </div>
             <div className="text-zinc-600 text-[10px] font-bold uppercase">范围: 1.0 - 24.0</div>
           </div>
-          
-          <input 
-            type="range" 
-            min="1" 
-            max="24" 
+
+          <input
+            type="range"
+            min="1"
+            max="24"
             step="1"
             value={uiResistance}
             onChange={(e) => setUiResistance(parseInt(e.target.value))}
@@ -158,14 +192,13 @@ export default function App() {
             </div>
             <div className="flex gap-2">
               {[5, 12, 20].map(level => (
-                <button 
-                  key={level} 
-                  onClick={() => updateResistance(level)} 
-                  className={`flex-1 rounded-2xl text-xs font-black transition-all border-2 ${
-                    uiResistance === level 
-                    ? 'bg-amber-500/10 border-amber-500 text-amber-500' 
+                <button
+                  key={level}
+                  onClick={() => updateResistance(level)}
+                  className={`flex-1 rounded-2xl text-xs font-black transition-all border-2 ${uiResistance === level
+                    ? 'bg-amber-500/10 border-amber-500 text-amber-500'
                     : 'bg-zinc-800 border-transparent text-zinc-500 hover:bg-zinc-700'
-                  }`}
+                    }`}
                 >
                   档位 {level}
                 </button>

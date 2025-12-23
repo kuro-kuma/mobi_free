@@ -9,6 +9,8 @@ export interface WorkoutStats {
   resistanceLevel: number;
   totalDistance: number;
   kcal: number;
+  heartRate: number;      // New
+  elapsedTime: number;    // New
 }
 
 /**
@@ -20,68 +22,140 @@ const getUint16BE = (value: DataView, offset: number) => {
   return (value.getUint8(offset) << 8) | value.getUint8(offset + 1);
 };
 
-const getUint24BE = (value: DataView, offset: number) => {
-  return (value.getUint8(offset) << 16) | (value.getUint8(offset + 1) << 8) | value.getUint8(offset + 2);
-};
-
 export const parseCrossTrainerData = (value: DataView): Partial<WorkoutStats> => {
   // DEBUG log
-  const hex = Array.from(new Uint8Array(value.buffer, value.byteOffset, value.byteLength))
-    .map(b => b.toString(16).padStart(2, '0').toUpperCase())
-    .join(' ');
-  console.log('FTMS Raw:', hex);
+  // const hex = Array.from(new Uint8Array(value.buffer, value.byteOffset, value.byteLength))
+  //   .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+  //   .join(' ');
+  // console.log('FTMS Raw:', hex);
 
-  const flags = value.getUint16(0, true); // Flags are LE
-  let offset = 2;
   const result: Partial<WorkoutStats> = {};
 
-  // 1. Instant Speed (Always present, Big Endian)
-  // Value 00 C8 -> 200 -> 2.00 km/h
+  // Reverting to Flag-based dynamic parsing because hardcoded offsets failed (flags change!).
+  const flags = value.getUint16(0, true);
+  let offset = 2; // Start after flags
+
+  // 1. Instant Speed (Bit 0? No, usually Byte 2-3 if flags say so)
+  // Standard FTMS:
+  // Bit 0: More Data (0 = Instant Speed present) - Actually usually present regardless?
+  // Let's assume Speed is always first field 2 bytes.
+  // We found Speed needs /10.
   const rawSpeed = getUint16BE(value, offset);
-  result.instantSpeed = rawSpeed / 100;
+  result.instantSpeed = rawSpeed / 10;
   offset += 2;
 
-  // 2. Avg Speed (Bit 1) - Skip
-  if (flags & (1 << 1)) offset += 2;
+  // 2. Average Speed (Bit 1)
+  if (flags & (1 << 1)) {
+    offset += 2;
+  }
 
-  // 3. Total Distance (Bit 2) - 3 Bytes BE
+  // 3. Total Distance (Bit 2) - 3 Bytes
+  // We saw this was present.
   if (flags & (1 << 2)) {
-    // const dist = getUint24BE(value, offset);
-    // result.totalDistance = dist; 
+    // Device reports cumulative distance (e.g. 88km). 
+    // We want session distance. 
+    // Ideally we'd read this and subtract start value, but device value implies long-term total.
+    // Better to calculate locally based on speed for this session.
+    // result.totalDistance = ...
     offset += 3;
   }
 
-  // 4. Step Count (Bit 3) -> Map to Cadence (RPM)
+  // 4. Cadence? (Bit 3?)
+  // Standard: Bit 3 is "Step Count"? Or Bit 2 is "Instant Cadence" (Bike)?
+  // In Mobi trace, we saw: 
+  // Flags 2F 9E -> 0010 1111 1001 1110
+  // Bits set: 1, 2, 3, 4, 7, 8... 
+  // Wait, 9E = 1001 1110. Bits: 1(AvgSpd), 2(Dist), 3(Step), 4(Stride), 7(Resist).
+  // 2F = 0010 1111. Bits 8(Power), 9(AvgPwr), 10(Energy), 11(HR), 13(Time).
+  // So:
+  // Speed (2)
+  // Avg Speed (2)
+  // Distance (3)
+  // Step Count (2) <- This is our Cadence!
+  // Stride Count (2)
+  // Resistance (2) <- This is our Power? Or pure Resistance?
+  // Power (2) <- This was the fixed value F0.
+
+  // Let's parse strictly by flags now.
+
+  // Step Count (Bit 3) -> Mapped to Cadence
   if (flags & (1 << 3)) {
-    const val = getUint16BE(value, offset);
-    result.instantCadence = val; // 22, 23, 24... reasonable start RPM
+    result.instantCadence = getUint16BE(value, offset);
     offset += 2;
   }
 
-  // 5. Stride Count (Bit 4) - Skip
-  if (flags & (1 << 4)) offset += 2;
+  // Stride Count (Bit 4)
+  if (flags & (1 << 4)) {
+    offset += 2;
+  }
 
-  // 6. Elevation (Bit 5) - Skip
-  if (flags & (1 << 5)) offset += 2;
+  // Elevation (Bit 5)
+  if (flags & (1 << 5)) {
+    offset += 2;
+  }
 
-  // 7. Inclination (Bit 6) - Skip
-  if (flags & (1 << 6)) offset += 2;
+  // Inclination (Bit 6)
+  if (flags & (1 << 6)) {
+    offset += 2;
+  }
 
-  // 8. Resistance Level (Bit 7) -> Map to Power!
-  // Observation: changing 1E..28 (30..40). Represents Watts?
+  // Resistance Level (Bit 7) -> Mapped to Power based on trace?
+  // Trace showed 00 C0 (192) at this slot?
+  // Let's check sequence: Spd(2)+Avg(2)+Dist(3)+Step(2)+Stride(2) = 11 bytes.
+  // Flags(2) + 11 = 13.
+  // Next fields?
+  // If bit 7 is set: 2 bytes.
   if (flags & (1 << 7)) {
-    const rawVal = getUint16BE(value, offset);
-    result.instantPower = rawVal;
+    // This looks like where dynamic power was.
+    result.instantPower = getUint16BE(value, offset);
     offset += 2;
   }
 
-  // 9. Instant Power (Bit 8) -> Ignore (Constant F0/240)
+  // Instant Power (Bit 8) -> The fixed F0 value
   if (flags & (1 << 8)) {
+    // Skip fixed junk
     offset += 2;
   }
 
-  // 10. Avg Power (Bit 9) -> Ignore or Log
-  // if (flags & (1 << 9)) ...
+  // Avg Power (Bit 9)
+  if (flags & (1 << 9)) {
+    offset += 2;
+  }
+
+  // Energy (Bit 10)
+  if (flags & (1 << 10)) {
+    // Device reports cumulative/huge value (510 kcal).
+    // We will calculate locally based on power.
+    // result.kcal = ... 
+    offset += 2; // Total
+    offset += 2; // /Hour
+    offset += 1; // /Min
+  }
+
+  // Heart Rate (Bit 11)
+  if (flags & (1 << 11)) {
+    const hr = value.getUint8(offset);
+    if (hr !== 0xFF) {
+      result.heartRate = hr;
+    } else {
+      result.heartRate = 0;
+    }
+    offset += 1;
+  }
+
+  // Meta (Bit 12)
+  if (flags & (1 << 12)) offset += 1;
+
+  // Time (Bit 13)
+  if (flags & (1 << 13)) {
+    const time = value.getUint16(offset, true); // LE per trace
+    if (time !== 0xFFFF) {
+      result.elapsedTime = time;
+    } else {
+      result.elapsedTime = 0;
+    }
+    offset += 2;
+  }
 
   return result;
 };

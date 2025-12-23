@@ -18,11 +18,14 @@ export const useBluetooth = () => {
     instantPower: 0,
     resistanceLevel: 1,
     totalDistance: 0,
-    kcal: 0
+    kcal: 0,
+    heartRate: 0,
+    elapsedTime: 0
   });
 
   const controlCharRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
   const deviceRef = useRef<BluetoothDevice | null>(null);
+  const timerRef = useRef<number | null>(null);
 
   // 连接设备
   const connect = useCallback(async () => {
@@ -59,8 +62,24 @@ export const useBluetooth = () => {
         const char = e.target as BluetoothRemoteGATTCharacteristic;
         const dv = char.value;
         if (!dv) return;
+
         const newData = parseCrossTrainerData(dv);
-        setStats(prev => ({ ...prev, ...newData }));
+
+        setStats(prev => {
+          // 本地计时逻辑：如果有速度且未开始计时，则启动；如果无速度，则暂停？
+          // 简单方案：只要收到数据且有速度 > 0，就认为是运动中。
+          // 实际上 FTMS 数据频率很高，我们最好只依赖每秒更新一次 UI 或者在这里累加。
+          // 更好的体验是：当检测到 speed > 0 时，如果不计时则开始。
+
+          // 这里我们简单做一个 hack: 
+          // 如果 stats.elapsedTime 没动 (即 device report 0), 我们自己加。
+          // 但由于 rerender 问题，最好用 useEffect 独立计时。
+          // 下面只更新 device 数据，把 time 字段留给 local 覆盖。
+          if (newData.elapsedTime === 0) {
+            delete newData.elapsedTime; // 忽略设备发的 0
+          }
+          return { ...prev, ...newData };
+        });
       });
 
       // 2. 控制点特征值
@@ -74,10 +93,43 @@ export const useBluetooth = () => {
       deviceRef.current = device;
       setIsConnected(true);
 
+      // 启动本地计时器 (当状态 connected 时)
+      if (!timerRef.current) {
+        timerRef.current = window.setInterval(() => {
+          setStats(s => {
+            // 只有当速度 > 0 时才计时和累积数据
+            if (s.instantSpeed > 0) {
+              // 1. 距离累积 (米): Speed (km/h) * 1000 / 3600 (s)
+              const distInc = (s.instantSpeed * 1000) / 3600;
+
+              // 2. 卡路里累积 (kcal): Power (W) -> Work (J) -> Kcal
+              // 1 W = 1 J/s. 
+              // 1 kcal = 4184 J.
+              // Human Efficiency ~24%. 
+              // Kcal/s ~= Power / 0.24 / 4184 ~= Power * 0.001
+              // Example: 100W -> 0.1 kcal/s -> 360 kcal/h. Reasonable.
+              const kcalInc = s.instantPower * 0.001;
+
+              return {
+                ...s,
+                elapsedTime: s.elapsedTime + 1,
+                totalDistance: s.totalDistance + distInc,
+                kcal: s.kcal + kcalInc
+              };
+            }
+            return s;
+          });
+        }, 1000);
+      }
+
       // 处理意外断连
       device.addEventListener('gattserverdisconnected', () => {
         setIsConnected(false);
         controlCharRef.current = null;
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -88,16 +140,20 @@ export const useBluetooth = () => {
   // 断开连接
   const disconnect = useCallback(() => {
     deviceRef.current?.gatt?.disconnect();
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
   }, []);
 
   // 设置阻力 (0.1 步进处理)
   const setResistance = useCallback(async (level: number) => {
     if (!controlCharRef.current) return;
-    
+
     // 转换为协议要求的原始值 (Level * 10)
     const rawValue = Math.round(level * 10);
     const command = new Uint8Array([0x04, rawValue & 0xFF, (rawValue >> 8) & 0xFF]);
-    
+
     try {
       await controlCharRef.current.writeValue(command);
       if ('vibrate' in navigator) navigator.vibrate(50);
