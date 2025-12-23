@@ -65,7 +65,14 @@ const CONTROL_POINT_UUID = 0x2AD9;
 /**
  * --- UI 组件 ---
  */
-const StatCard = ({ title, value, unit, icon, highlight }: any) => (
+type StatCardProps = {
+  title: string;
+  value: number | string;
+  unit: string;
+  icon: React.ReactNode;
+  highlight?: boolean;
+};
+const StatCard = ({ title, value, unit, icon, highlight }: StatCardProps) => (
   <div className={`p-6 rounded-3xl border border-white/5 transition-all hover:border-white/10 ${highlight ? 'bg-gradient-to-br from-zinc-800 to-black col-span-2 md:col-span-2' : 'bg-zinc-900/50'}`}>
     <div className="flex items-center gap-2 text-zinc-500 text-[10px] font-bold uppercase mb-4">
       {icon} {title}
@@ -79,7 +86,11 @@ const StatCard = ({ title, value, unit, icon, highlight }: any) => (
   </div>
 );
 
-const ControlButton = ({ children, onClick }: any) => (
+type ControlButtonProps = {
+  children: React.ReactNode;
+  onClick?: () => void;
+};
+const ControlButton = ({ children, onClick }: ControlButtonProps) => (
   <button 
     onClick={onClick} 
     className="flex-1 h-16 bg-zinc-800 rounded-2xl flex items-center justify-center hover:bg-zinc-700 active:scale-95 transition-all text-white shadow-lg"
@@ -93,6 +104,7 @@ const ControlButton = ({ children, onClick }: any) => (
  */
 export default function App() {
   const [isConnected, setIsConnected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<WorkoutStats>({
     instantSpeed: 0,
     instantCadence: 0,
@@ -109,7 +121,16 @@ export default function App() {
   // 蓝牙连接
   const connect = useCallback(async () => {
     try {
-      const device = await navigator.bluetooth.requestDevice({
+      setError(null);
+      const api = navigator.bluetooth;
+      if (!window.isSecureContext || !api?.requestDevice) {
+        const detail = !window.isSecureContext
+          ? "请通过 HTTPS 或 localhost 访问页面。"
+          : "请使用支持 Web Bluetooth 的浏览器（如 Chrome）。";
+        throw new Error(`Web Bluetooth 不可用。${detail}`);
+      }
+
+      const device = await api.requestDevice({
         filters: [{ services: [FTMS_SERVICE_UUID] }],
         optionalServices: [FTMS_SERVICE_UUID]
       });
@@ -120,8 +141,11 @@ export default function App() {
       // 数据监听通知
       const dataChar = await service?.getCharacteristic(CROSS_TRAINER_DATA_UUID);
       await dataChar?.startNotifications();
-      dataChar?.addEventListener('characteristicvaluechanged', (e: any) => {
-        const newData = parseCrossTrainerData(e.target.value);
+      dataChar?.addEventListener('characteristicvaluechanged', (e: Event) => {
+        const char = e.target as BluetoothRemoteGATTCharacteristic;
+        const dv = char.value;
+        if (!dv) return;
+        const newData = parseCrossTrainerData(dv);
         setStats(prev => ({ ...prev, ...newData }));
       });
 
@@ -141,6 +165,7 @@ export default function App() {
         controlCharRef.current = null;
       });
     } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
       console.error("蓝牙连接错误:", err);
     }
   }, []);
@@ -190,6 +215,14 @@ export default function App() {
       </header>
 
       <main className="max-w-4xl mx-auto space-y-6">
+        {error && (
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-3xl p-6 flex gap-4 items-start">
+            <Info className="text-rose-500 w-6 h-6 shrink-0 mt-0.5" />
+            <div className="text-sm text-rose-200/70 leading-relaxed">
+              {error}
+            </div>
+          </div>
+        )}
         {/* 数据面板 */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <StatCard 

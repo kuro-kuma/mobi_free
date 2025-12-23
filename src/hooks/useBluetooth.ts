@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
-import { parseCrossTrainerData, WorkoutStats } from '../utils/ftms-parser';
+import { parseCrossTrainerData } from '../utils/ftms-parser';
+import type { WorkoutStats } from '../utils/ftms-parser';
 
 const FTMS_SERVICE_UUID = 0x1826;
 const CROSS_TRAINER_DATA_UUID = 0x2ACE;
@@ -36,8 +37,11 @@ export const useBluetooth = () => {
       // 1. 运动数据监听
       const dataChar = await service?.getCharacteristic(CROSS_TRAINER_DATA_UUID);
       await dataChar?.startNotifications();
-      dataChar?.addEventListener('characteristicvaluechanged', (e: any) => {
-        const newData = parseCrossTrainerData(e.target.value);
+      dataChar?.addEventListener('characteristicvaluechanged', (e: Event) => {
+        const char = e.target as BluetoothRemoteGATTCharacteristic;
+        const dv = char.value;
+        if (!dv) return;
+        const newData = parseCrossTrainerData(dv);
         setStats(prev => ({ ...prev, ...newData }));
       });
 
