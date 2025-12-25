@@ -1,73 +1,74 @@
-# React + TypeScript + Vite
+# MOBI-FREE 🚴
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+一个基于 Web Bluetooth API 的莫比椭圆机控制应用，无需安装任何 App，直接在浏览器中使用。
 
-Currently, two official plugins are available:
+## ✨ 功能特性
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 🔗 **无线连接**：通过蓝牙 FTMS 协议连接椭圆机
+- 📊 **实时数据**：显示速度、踏频、功率、距离、热量、时长等运动数据
+- 🎚️ **阻力调节**：支持 10-24 档阻力实时调节
+- 📱 **跨平台**：支持桌面和移动设备浏览器
+- 🎨 **现代 UI**：简洁美观的深色主题界面
 
-## React Compiler
+## 🚀 快速开始
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 环境要求
 
-## Expanding the ESLint configuration
+- Node.js 16+
+- 支持 Web Bluetooth 的浏览器（Chrome、Edge、Opera）
+- HTTPS 或 localhost 环境
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 安装运行
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+```bash
+# 安装依赖
+npm install
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+# 启动开发服务器
+npm run dev
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# 构建生产版本
+npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 使用说明
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+1. 确保椭圆机已开机且未被其他应用连接
+2. 在浏览器中打开应用
+3. 点击「连接椭圆机」按钮
+4. 选择你的设备并配对
+5. 开始运动，实时查看数据并调节阻力
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 🛠️ 技术栈
+
+- **React** + **TypeScript**
+- **Vite** - 构建工具
+- **Web Bluetooth API** - 蓝牙通信
+- **FTMS 协议** - 健身设备标准协议
+- **Tailwind CSS** - 样式框架
+- **Lucide React** - 图标库
+
+## 📝 协议说明
+
+本项目实现了 FTMS (Fitness Machine Service) 蓝牙协议，支持：
+- Cross Trainer Data (0x2ACE) - 运动数据读取
+- Fitness Machine Control Point (0x2AD9) - 设备控制
+
+### 特殊处理
+
+由于莫比椭圆机的非标准实现：
+- **读取阻力**：机器返回值需除以 10（如 240 → 24 档）
+- **写入阻力**：直接发送档位值（如设置 10 档发送 10）
+- **阻力范围**：限制为 10-24 档
+
+## 📄 许可证
+
+MIT License
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+---
+
+**注意**：本项目仅供学习交流使用，与莫比官方无关。
