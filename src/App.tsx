@@ -65,25 +65,34 @@ const formatTime = (seconds: number) => {
  */
 export default function App() {
   const { isConnected, stats, error, connect, disconnect, setResistance } = useBluetooth();
-  const [uiResistance, setUiResistance] = useState(1);
+  const [uiResistance, setUiResistance] = useState(10);
+  const [ignoreRemoteUpdatesUntil, setIgnoreRemoteUpdatesUntil] = useState(0);
 
-  // 双向同步阻力
+  // 初始连接时同步机器阻力值
   useEffect(() => {
-    // 如果机器返回了有效阻力值，且与 UI 不一致，且当前不在拖动状态(简单判断)
-    // 这里直接同步，因为 stats 更新频率适中
-    if (stats.resistanceLevel && stats.resistanceLevel !== uiResistance) {
+    const now = Date.now();
+    // 只在以下情况更新 UI：
+    // 1. 机器返回了有效值
+    // 2. 当前不在「忽略远程更新」的时间窗口内
+    // 3. 值确实不同
+    if (stats.resistanceLevel &&
+      now > ignoreRemoteUpdatesUntil &&
+      stats.resistanceLevel !== uiResistance) {
       setUiResistance(Math.round(stats.resistanceLevel));
     }
-  }, [stats.resistanceLevel, uiResistance]);
+  }, [stats.resistanceLevel, uiResistance, ignoreRemoteUpdatesUntil]);
 
   // 设置阻力逻辑
   const updateResistance = useCallback(async (level: number) => {
-    const safeLevel = Math.min(Math.max(level, 1), 24);
-    const rawValue = Math.round(safeLevel * 10);
+    const safeLevel = Math.min(Math.max(level, 10), 24);
 
     try {
-      await setResistance(rawValue / 10);
+      // 立即更新 UI（乐观更新）
       setUiResistance(safeLevel);
+      // 忽略接下来 1 秒内的机器返回值，避免因延迟导致的闪烁
+      setIgnoreRemoteUpdatesUntil(Date.now() + 1000);
+
+      await setResistance(safeLevel);
       if ('vibrate' in navigator) navigator.vibrate(50);
     } catch (e) {
       console.error("设置阻力失败", e);
@@ -179,12 +188,12 @@ export default function App() {
                 L{uiResistance}
               </div>
             </div>
-            <div className="text-zinc-600 text-[10px] font-bold uppercase">范围: 1.0 - 24.0</div>
+            <div className="text-zinc-600 text-[10px] font-bold uppercase">范围: 10 - 24</div>
           </div>
 
           <input
             type="range"
-            min="1"
+            min="10"
             max="24"
             step="1"
             value={uiResistance}
@@ -200,7 +209,7 @@ export default function App() {
               <ControlButton onClick={() => handleManualAdjust(1)}><Plus /></ControlButton>
             </div>
             <div className="flex gap-2">
-              {[5, 12, 20].map(level => (
+              {[10, 16, 24].map(level => (
                 <button
                   key={level}
                   onClick={() => updateResistance(level)}

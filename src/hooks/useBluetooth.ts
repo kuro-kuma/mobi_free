@@ -62,12 +62,7 @@ export const useBluetooth = () => {
         const dv = char.value;
         if (!dv) return;
 
-        // Debug: Log incoming data part 1 (Flags)
-        // const flags = dv.getUint16(0, true) | (dv.getUint8(2) << 16);
-        // console.log("FTMS Flags:", flags.toString(2));
-
         const newData = parseCrossTrainerData(dv);
-        console.log("Parsed Stats:", newData);
 
         setStats(prev => {
           return { ...prev, ...newData };
@@ -81,9 +76,6 @@ export const useBluetooth = () => {
         const char = e.target as BluetoothRemoteGATTCharacteristic;
         const dv = char.value;
         if (!dv) return;
-        const arr = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
-        const hex = Array.from(arr).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
-        console.log("Control Point Response:", hex);
       });
       controlCharRef.current = ctrlChar || null;
 
@@ -117,12 +109,13 @@ export const useBluetooth = () => {
   const setResistance = useCallback(async (level: number) => {
     if (!controlCharRef.current) return;
 
-    // 实验：直接发送档位值（不乘以 10）
-    // 因为观察到机器的返回值异常，可能写入逻辑与读取不同
-    const rawValue = Math.round(level);
+    // 限制阻力范围：10-24 档（机器不接受 9 及以下的值）
+    const clampedLevel = Math.max(10, Math.min(24, Math.round(level)));
+
+    // 直接发送档位值（不乘以 10）
+    // 机器的非标准实现：读取时返回 value*10，写入时直接发送档位
+    const rawValue = clampedLevel;
     const command = new Uint8Array([0x04, rawValue & 0xFF, (rawValue >> 8) & 0xFF]);
-    const hexCmd = Array.from(command).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
-    console.log(`Setting resistance: level=${level}, raw=${rawValue}, command=[${hexCmd}]`);
 
     try {
       await controlCharRef.current.writeValue(command);
