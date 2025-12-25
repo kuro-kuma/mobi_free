@@ -11,9 +11,13 @@ import {
   Info,
   Timer,
   Flame,
-  MapPin
+  MapPin,
+  Github,
+  Heart,
+  X
 } from 'lucide-react';
 import { useBluetooth } from './hooks/useBluetooth';
+import alipayQR from './assets/alipay.jpg';
 
 
 /**
@@ -66,6 +70,7 @@ export default function App() {
   const { isConnected, stats, error, connect, disconnect, setResistance } = useBluetooth();
   const [uiResistance, setUiResistance] = useState(10);
   const [ignoreRemoteUpdatesUntil, setIgnoreRemoteUpdatesUntil] = useState(0);
+  const [showDonation, setShowDonation] = useState(false);
 
   // 初始连接时同步机器阻力值
   useEffect(() => {
@@ -233,11 +238,63 @@ export default function App() {
       </main >
 
       {/* 页脚 */}
-      < footer className="w-full mt-12 mb-8 text-center" >
-        <p className="text-zinc-700 text-[10px] font-bold uppercase tracking-[0.2em]">
+      <footer className="w-full mt-12 mb-8">
+        <div className="flex justify-center items-center gap-4 mb-4">
+          <a
+            href="https://github.com/z-hhh/mobi_free"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-full transition-all text-sm font-bold text-zinc-300 hover:text-white"
+          >
+            <Github size={16} />
+            GitHub
+          </a>
+          <button
+            onClick={() => setShowDonation(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 rounded-full transition-all text-sm font-bold text-white shadow-lg hover:shadow-xl"
+          >
+            <Heart size={16} fill="currentColor" />
+            赞助支持
+          </button>
+        </div>
+        <p className="text-zinc-700 text-[10px] font-bold uppercase tracking-[0.2em] text-center">
           Powered by Web Bluetooth API & Open Source
         </p>
-      </footer >
+      </footer>
+
+      {/* 捐助弹窗 */}
+      {showDonation && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setShowDonation(false)}
+        >
+          <div
+            className="bg-zinc-900 rounded-3xl p-8 max-w-sm w-full border border-white/10 shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowDonation(false)}
+              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+            >
+              <X size={24} />
+            </button>
+            <h3 className="text-2xl font-black mb-2 text-center">感谢支持 ❤️</h3>
+            <p className="text-zinc-500 text-sm text-center mb-6">
+              您的支持是我持续开发的动力
+            </p>
+            <div className="bg-white p-4 rounded-2xl">
+              <img
+                src={alipayQR}
+                alt="支付宝收款码"
+                className="w-full h-auto rounded-lg"
+              />
+            </div>
+            <p className="text-zinc-600 text-xs text-center mt-4">
+              使用支付宝扫码赞助
+            </p>
+          </div>
+        </div>
+      )}
     </div >
   );
 }
