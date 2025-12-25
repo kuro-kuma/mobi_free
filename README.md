@@ -39,6 +39,31 @@ npm run build
 4. 选择你的设备并配对
 5. 开始运动，实时查看数据并调节阻力
 
+## 🌐 部署到 Cloudflare Pages
+
+### 方式一：Git 集成（推荐）
+
+1. 将代码推送到 GitHub
+2. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)
+3. 进入 **Workers & Pages** → **Create application** → **Pages** → **Connect to Git**
+4. 选择你的仓库并配置：
+   - **Framework preset**: Vite
+   - **Build command**: `npm run build`
+   - **Build output directory**: `dist`
+5. 点击 **Save and Deploy**
+
+### 方式二：Direct Upload
+
+```bash
+# 构建项目
+npm run build
+
+# 使用 wrangler 部署
+npx wrangler pages deploy dist --project-name=mobi-free
+```
+
+> **注意**：Web Bluetooth API 要求 HTTPS 环境，Cloudflare Pages 自动提供 HTTPS。
+
 ## 🛠️ 技术栈
 
 - **React** + **TypeScript**
