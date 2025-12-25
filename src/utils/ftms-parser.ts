@@ -80,7 +80,7 @@ export const parseCrossTrainerData = (value: DataView): Partial<WorkoutStats> =>
   // 8. Resistance Level (Bit 7)
   if (flags & (1 << 7)) {
     const resistance = value.getInt16(offset, true);
-    result.resistanceLevel = resistance;
+    result.resistanceLevel = resistance / 10;
     offset += 2;
   }
 

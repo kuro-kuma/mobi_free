@@ -72,6 +72,14 @@ export const useBluetooth = () => {
       // 2. 控制点特征值
       const ctrlChar = await service?.getCharacteristic(CONTROL_POINT_UUID);
       await ctrlChar?.startNotifications();
+      ctrlChar?.addEventListener('characteristicvaluechanged', (e: Event) => {
+        const char = e.target as BluetoothRemoteGATTCharacteristic;
+        const dv = char.value;
+        if (!dv) return;
+        const arr = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+        const hex = Array.from(arr).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+        console.log("Control Point Response:", hex);
+      });
       controlCharRef.current = ctrlChar || null;
 
       // 3. 自动请求控制权 (OpCode: 0x00)
@@ -102,6 +110,7 @@ export const useBluetooth = () => {
 
     // 转换为协议要求的原始值 (Level * 10)
     const rawValue = Math.round(level * 10);
+    console.log("rawValue", rawValue);
     const command = new Uint8Array([0x04, rawValue & 0xFF, (rawValue >> 8) & 0xFF]);
 
     try {
