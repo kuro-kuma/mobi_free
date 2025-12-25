@@ -62,7 +62,12 @@ export const useBluetooth = () => {
         const dv = char.value;
         if (!dv) return;
 
+        // Debug: Log incoming data part 1 (Flags)
+        // const flags = dv.getUint16(0, true) | (dv.getUint8(2) << 16);
+        // console.log("FTMS Flags:", flags.toString(2));
+
         const newData = parseCrossTrainerData(dv);
+        console.log("Parsed Stats:", newData);
 
         setStats(prev => {
           return { ...prev, ...newData };
@@ -84,6 +89,10 @@ export const useBluetooth = () => {
 
       // 3. 自动请求控制权 (OpCode: 0x00)
       await ctrlChar?.writeValue(new Uint8Array([0x00]));
+
+      // 4. 启动训练 (OpCode: 0x07 - Start or Resume)
+      await new Promise(resolve => setTimeout(resolve, 100)); // 等待控制权确认
+      await ctrlChar?.writeValue(new Uint8Array([0x07]));
 
       deviceRef.current = device;
       setIsConnected(true);
@@ -108,10 +117,12 @@ export const useBluetooth = () => {
   const setResistance = useCallback(async (level: number) => {
     if (!controlCharRef.current) return;
 
-    // 转换为协议要求的原始值 (Level * 10)
-    const rawValue = Math.round(level * 10);
-    console.log("rawValue", rawValue);
+    // 实验：直接发送档位值（不乘以 10）
+    // 因为观察到机器的返回值异常，可能写入逻辑与读取不同
+    const rawValue = Math.round(level);
     const command = new Uint8Array([0x04, rawValue & 0xFF, (rawValue >> 8) & 0xFF]);
+    const hexCmd = Array.from(command).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+    console.log(`Setting resistance: level=${level}, raw=${rawValue}, command=[${hexCmd}]`);
 
     try {
       await controlCharRef.current.writeValue(command);
