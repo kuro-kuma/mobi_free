@@ -106,28 +106,27 @@ jobs:
 
 ## 🌐 部署到 Cloudflare Pages
 
+项目已配置 `wrangler.jsonc`，可以直接部署。
+
 ### 方式一：Git 集成（推荐）
 
 1. 将代码推送到 GitHub
 2. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)
 3. 进入 **Workers & Pages** → **Create application** → **Pages** → **Connect to Git**
-4. 选择你的仓库并配置：
-   - **Framework preset**: Vite
-   - **Build command**: `npm run build`
-   - **Build output directory**: `dist`
-5. 点击 **Save and Deploy**
+4. 选择你的仓库
+5. Cloudflare 会自动检测 `wrangler.jsonc` 配置并部署
 
-### 方式二：Direct Upload
+### 方式二：命令行部署
 
 ```bash
 # 构建项目
 npm run build
 
-# 使用 wrangler 部署
-npx wrangler pages deploy dist --project-name=mobi-free
+# 部署（首次部署会创建项目）
+npx wrangler pages deploy
 ```
 
-> **注意**：Web Bluetooth API 要求 HTTPS 环境，Cloudflare Pages 自动提供 HTTPS。
+> **注意**：Cloudflare Pages 自动提供 HTTPS，满足 Web Bluetooth API 的要求。
 
 ## 🛠️ 技术栈
 
